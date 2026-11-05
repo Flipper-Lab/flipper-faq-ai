@@ -22,7 +22,7 @@ from aiogram.types import (
 )
 from sentence_transformers import SentenceTransformer, util
 
-from bot.config import TOKEN
+from bot.config import Settings
 
 os.environ["TF_ENABLE_ONEDNN_OPTS"] = "0"
 os.environ["TF_CPP_MIN_LOG_LEVEL"] = "2"
@@ -132,8 +132,9 @@ class FaqFlipperBot:
 
 
 faq_bot = FaqFlipperBot(faq_dir="faq")
+settings = Settings()
 bot = Bot(
-    token=TOKEN,
+    token=settings.bot_token,
     default=DefaultBotProperties(
         link_preview_is_disabled=True, parse_mode=ParseMode.HTML
     ),
