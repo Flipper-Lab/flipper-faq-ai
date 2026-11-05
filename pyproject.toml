@@ -1,0 +1,27 @@
+[project]
+name = "flipper-faq-ai"
+version = "0.1.0"
+description = "ИИ–помощник для владельцев Flipper Zero. Отвечает на вопросы в inline–режиме, помогает с настройкой и решением проблем."
+readme = "README.md"
+requires-python = ">=3.14"
+dependencies = [
+    "aiogram>=3.31.0",
+    "sentence-transformers>=6.2.0",
+]
+
+[dependency-groups]
+dev = [
+    "pre-commit>=4.7.0",
+    "ruff>=0.17.3",
+]
+
+[tool.ruff]
+line-length = 88
+target-version = "py314"
+
+[tool.ruff.lint]
+select = ["E", "F", "I", "UP", "B", "SIM", "RET"]
+ignore = ["E501"]
+
+[tool.ruff.format]
+quote-style = "double"

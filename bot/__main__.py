@@ -1,6 +1,6 @@
-import logging
 import asyncio
 import json
+import logging
 import os
 import re
 import time
@@ -8,17 +8,19 @@ from functools import lru_cache
 from pathlib import Path
 
 import numpy as np
-from sentence_transformers import SentenceTransformer, util
-
 from aiogram import Bot, Dispatcher
 from aiogram.client.default import DefaultBotProperties
 from aiogram.enums import ParseMode
-from aiogram.filters import CommandStart, Command
+from aiogram.filters import Command, CommandStart
 from aiogram.types import (
-    InlineQuery, InlineQueryResultArticle,
-    InputTextMessageContent, InlineKeyboardButton,
-    InlineKeyboardMarkup, Message
+    InlineKeyboardButton,
+    InlineKeyboardMarkup,
+    InlineQuery,
+    InlineQueryResultArticle,
+    InputTextMessageContent,
+    Message,
 )
+from sentence_transformers import SentenceTransformer, util
 
 from bot.config import TOKEN
 
@@ -29,8 +31,8 @@ START_TIME = time.time()
 
 logger = logging.getLogger(__name__)
 
-class FaqFlipperBot:
 
+class FaqFlipperBot:
     def __init__(self, faq_dir="faq") -> None:
         self.model = None
         self.faq = {}
@@ -48,22 +50,21 @@ class FaqFlipperBot:
         error_files = []
 
         for file_path in faq_path.rglob("*.json"):
+            category = str(file_path.relative_to(faq_path).with_suffix(""))
 
-            category = str(file_path.relative_to(faq_path).with_suffix(''))
-        
             try:
-                with open(file_path, "r", encoding="utf-8") as f:
+                with open(file_path, encoding="utf-8") as f:
                     data = json.load(f)
-            
+
                 if "questions" not in data or "answer" not in data:
-                    raise ValueError(f"Некорректная структура файла")
-            
+                    raise ValueError("Некорректная структура файла")
+
                 self.faq[category] = {
                     "questions": data["questions"],
-                    "answer": data["answer"]
+                    "answer": data["answer"],
                 }
                 print(f"Загружено: {category} ({len(data['questions'])} вопросов)")
-        
+
             except (json.JSONDecodeError, ValueError) as e:
                 print(f"Ошибка в файле {file_path}: {str(e)}")
                 error_files.append(str(file_path))
@@ -81,10 +82,8 @@ class FaqFlipperBot:
         """Загружает модель SentenceTransformer"""
 
         if self.model is None:
-
             self.model = SentenceTransformer(
-                "sentence-transformers/all-MiniLM-L12-v2",
-                device="cpu"
+                "sentence-transformers/all-MiniLM-L12-v2", device="cpu"
             )
 
     def prepare_embeddings(self):
@@ -99,9 +98,7 @@ class FaqFlipperBot:
                 self.question_map[clean_q] = data["answer"]
 
         self.all_embeddings = self.model.encode(
-            all_questions,
-            convert_to_numpy=True,
-            show_progress_bar=False
+            all_questions, convert_to_numpy=True, show_progress_bar=False
         )
         print(f"Рассчитано эмбеддингов: {len(self.all_embeddings)}")
 
@@ -120,10 +117,14 @@ class FaqFlipperBot:
         max_idx = np.argmax(scores).item()
         max_score = scores[max_idx].item()
 
-        logger.info(f"Вопрос {question} | Поиск занял: {time.time()-start_time:.3f}с | Сходство: {max_score:.2f}")
-        return self.question_map[
-            list(self.question_map.keys())[max_idx]
-        ] if max_score > threshold else None
+        logger.info(
+            f"Вопрос {question} | Поиск занял: {time.time() - start_time:.3f}с | Сходство: {max_score:.2f}"
+        )
+        return (
+            self.question_map[list(self.question_map.keys())[max_idx]]
+            if max_score > threshold
+            else None
+        )
 
     def clean_question(self, text: str) -> str:
         text = re.sub(r"[^\w\s]", "", text.lower())
@@ -131,7 +132,12 @@ class FaqFlipperBot:
 
 
 faq_bot = FaqFlipperBot(faq_dir="faq")
-bot = Bot(token=TOKEN, default=DefaultBotProperties(link_preview_is_disabled=True, parse_mode=ParseMode.HTML))
+bot = Bot(
+    token=TOKEN,
+    default=DefaultBotProperties(
+        link_preview_is_disabled=True, parse_mode=ParseMode.HTML
+    ),
+)
 dp = Dispatcher()
 
 
@@ -144,10 +150,15 @@ async def start_command(message: Message) -> None:
     await message.answer(
         text=msg,
         reply_markup=InlineKeyboardMarkup(
-                inline_keyboard=[[InlineKeyboardButton(text="🔍 Задать вопрос", switch_inline_query_current_chat="")
-                ]]
-            )
-        )
+            inline_keyboard=[
+                [
+                    InlineKeyboardButton(
+                        text="🔍 Задать вопрос", switch_inline_query_current_chat=""
+                    )
+                ]
+            ]
+        ),
+    )
 
 
 @dp.message(Command("info"))
@@ -178,7 +189,6 @@ async def handle_inline_query(inline_query: InlineQuery) -> None:
     query = inline_query.query.strip()
 
     if not query:
-
         return
 
     cleaned_query = faq_bot.clean_question(query)
@@ -187,26 +197,22 @@ async def handle_inline_query(inline_query: InlineQuery) -> None:
     results = []
 
     if answer:
-
         item = InlineQueryResultArticle(
             id="1",
             title="✅ Ответ найден!",
-            input_message_content=InputTextMessageContent(
-                message_text=answer
-            ),
-            description=answer[:100] + "..." if len(answer) > 100 else answer
+            input_message_content=InputTextMessageContent(message_text=answer),
+            description=answer[:100] + "..." if len(answer) > 100 else answer,
         )
         results.append(item)
 
     else:
-
         item = InlineQueryResultArticle(
             id="1",
             title="❌ Ответ не найден",
             input_message_content=InputTextMessageContent(
                 message_text="Извините, я не нашел ответа на ваш вопрос."
             ),
-            description="Попробуйте переформулировать запрос"
+            description="Попробуйте переформулировать запрос",
         )
         results.append(item)
 
@@ -216,12 +222,10 @@ async def handle_inline_query(inline_query: InlineQuery) -> None:
 async def main() -> None:
     await dp.start_polling(bot)
 
+
 if __name__ == "__main__":
-
     try:
-
         asyncio.run(main())
 
     except KeyboardInterrupt:
-
         logger.warning("Бот остановлен пользователем")
